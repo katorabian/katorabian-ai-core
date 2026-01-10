@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  core-check:
+    image: busybox
+    container_name: core-check
+    command: >
+      sh -c "
+      echo 'Container started successfully';
+      echo 'Listing AI Core volume:';
+      ls /ai-core;
+      echo 'Sleeping...';
+      tail -f /dev/null
+      "
+    volumes:
+      - "F:/katorabian:/ai-core"
+    restart: unless-stopped
