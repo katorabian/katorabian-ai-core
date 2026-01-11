@@ -6,10 +6,11 @@ import kotlinx.serialization.Serializable
 data class OllamaRequest(
     val model: String,
     val prompt: String,
-    val stream: Boolean = false
+    val stream: Boolean
 )
 
 @Serializable
 data class OllamaResponse(
-    val response: String
+    val response: String,
+    val done: Boolean
 )
