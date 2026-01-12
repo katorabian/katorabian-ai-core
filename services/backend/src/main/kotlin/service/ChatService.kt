@@ -8,55 +8,81 @@ import java.time.Instant
 import java.util.UUID
 
 class ChatService(
-    private val llmClient: LlmClient
+    private val llmClient: LlmClient,
+    private val store: ChatSessionStore
 ) {
 
     fun createSession(model: String): ChatSession {
-        return ChatSession(
+        val session = ChatSession(
             id = UUID.randomUUID(),
             model = model,
             createdAt = Instant.now()
         )
+        store.createSession(session)
+        return session
     }
 
     suspend fun sendMessage(
-        session: ChatSession,
-        userMessage: String
+        sessionId: UUID,
+        userContent: String
     ): ChatMessage {
-        val messages = listOf(
-            ChatMessage(
-                id = UUID.randomUUID(),
-                sessionId = session.id,
-                role = Role.USER,
-                content = userMessage,
-                createdAt = Instant.now()
-            )
+        val session = store.getSession(sessionId)
+            ?: error("Session not found")
+
+        val userMessage = ChatMessage(
+            id = UUID.randomUUID(),
+            sessionId = session.id,
+            role = Role.USER,
+            content = userContent,
+            createdAt = Instant.now()
         )
 
-        val response = llmClient.generate(
+        store.addMessage(userMessage)
+
+        val history = store.getMessages(session.id)
+
+        val responseText = llmClient.generate(
             model = session.model,
-            messages = messages
+            messages = history
         )
 
-        return ChatMessage(
+        val assistantMessage = ChatMessage(
             id = UUID.randomUUID(),
             sessionId = session.id,
             role = Role.ASSISTANT,
-            content = response,
+            content = responseText,
             createdAt = Instant.now()
         )
+
+        store.addMessage(assistantMessage)
+
+        return assistantMessage
     }
 
     suspend fun streamMessage(
-        session: ChatSession,
-        userMessage: ChatMessage,
+        sessionId: UUID,
+        userContent: String,
         onToken: suspend (String) -> Unit
     ) {
+        val session = store.getSession(sessionId)
+            ?: error("Session not found")
+
+        val userMessage = ChatMessage(
+            id = UUID.randomUUID(),
+            sessionId = session.id,
+            role = Role.USER,
+            content = userContent,
+            createdAt = Instant.now()
+        )
+
+        store.addMessage(userMessage)
+
+        val history = store.getMessages(session.id)
+
         llmClient.stream(
             model = session.model,
-            messages = listOf(userMessage),
+            messages = history,
             onToken = onToken
         )
     }
-
 }

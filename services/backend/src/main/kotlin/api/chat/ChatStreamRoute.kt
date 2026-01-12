@@ -1,7 +1,5 @@
 package com.katorabian.api.chat
 
-import com.katorabian.domain.ChatMessage
-import com.katorabian.domain.enum.Role
 import com.katorabian.service.ChatService
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -9,49 +7,31 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.time.Instant
 import java.util.*
 
 fun Route.chatStreamRoute(chatService: ChatService) {
 
-    get("/api/v1/chat/stream") {
+    get("/api/v1/chat/sessions/{id}/stream") {
 
-        val model = call.request.queryParameters["model"]
-            ?: return@get call.respond(HttpStatusCode.BadRequest, "model required")
-
+        val sessionId = UUID.fromString(call.parameters["id"])
         val message = call.request.queryParameters["message"]
-            ?: return@get call.respond(HttpStatusCode.BadRequest, "message required")
+            ?: return@get call.respondText("message required")
 
-        call.response.cacheControl(CacheControl.NoCache(null))
         call.respondTextWriter(
             contentType = ContentType.Text.EventStream
         ) {
-            val session = chatService.createSession(model)
-
-            val userMessage = ChatMessage(
-                id = UUID.randomUUID(),
-                sessionId = session.id,
-                role = Role.USER,
-                content = message,
-                createdAt = Instant.now()
-            )
-
             chatService.streamMessage(
-                session = session,
-                userMessage = userMessage
+                sessionId = sessionId,
+                userContent = message
             ) { token ->
-                val payload = Json.encodeToString(
-                    mapOf("text" to token)
-                )
-
+                val json = Json.encodeToString(mapOf("text" to token))
                 write("event: token\n")
-                write("time: ${Instant.now()}\n")
-                write("data: $payload\n\n")
+                write("""data: $json""")
+                write("\n\n")
                 flush()
             }
 
-            write("event: done\n")
-            write("data: {}\n\n")
+            write("event: done\ndata: {}\n\n")
             flush()
         }
     }

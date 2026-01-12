@@ -1,8 +1,10 @@
 package com.katorabian.application
 
+import com.katorabian.api.chat.chatSessionRoutes
 import com.katorabian.api.chat.chatStreamRoute
 import com.katorabian.llm.ollama.OllamaClient
 import com.katorabian.service.ChatService
+import com.katorabian.service.ChatSessionStore
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
@@ -15,7 +17,8 @@ import kotlinx.serialization.Serializable
 
 fun main() {
     val llmClient = OllamaClient()
-    val chatService = ChatService(llmClient)
+    val store = ChatSessionStore()
+    val chatService = ChatService(llmClient, store)
 
     embeddedServer(Netty, port = 8080) {
         install(ContentNegotiation) {
@@ -31,7 +34,7 @@ fun main() {
                 val req = call.receive<ChatRequest>()
 
                 val session = chatService.createSession(req.model)
-                val response = chatService.sendMessage(session, req.message)
+                val response = chatService.sendMessage(session.id, req.message)
 
                 call.respond(
                     ChatResponse(
@@ -40,6 +43,7 @@ fun main() {
                 )
             }
 
+            chatSessionRoutes(chatService)
             chatStreamRoute(chatService)
         }
     }.start(wait = true)
