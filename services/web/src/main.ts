@@ -123,8 +123,9 @@ async function sendMessage() {
 
   // 4️⃣ подготавливаем место под ответ ассистента
   const assistantEl = document.createElement("div");
-  assistantEl.innerHTML = `<b>assistant</b>: `;
+  assistantEl.innerHTML = `<b>assistant</b>: <i>thinking...</i>`;
   messagesEl.appendChild(assistantEl);
+  let firstToken = true;
 
   // 5️⃣ запускаем SSE
   const eventSource = new EventSource(
@@ -133,6 +134,12 @@ async function sendMessage() {
 
   eventSource.addEventListener("token", (e) => {
     const data = JSON.parse((e as MessageEvent).data);
+
+    if (firstToken) {
+      assistantEl.innerHTML = `<b>assistant</b>: `;
+      firstToken = false;
+    }
+
     assistantEl.innerHTML += data.text;
     messagesEl.scrollTop = messagesEl.scrollHeight;
   });
