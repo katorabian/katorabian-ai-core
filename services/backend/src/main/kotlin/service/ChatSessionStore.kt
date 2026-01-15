@@ -2,6 +2,7 @@ package com.katorabian.service
 
 import com.katorabian.domain.ChatMessage
 import com.katorabian.domain.ChatSession
+import com.katorabian.domain.enum.Role
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -18,6 +19,9 @@ class ChatSessionStore {
     fun getSession(id: UUID): ChatSession? = sessions[id]
 
     fun addMessage(message: ChatMessage) {
+        require(message.role != Role.SYSTEM) {
+            "SYSTEM messages must not be stored in session history"
+        }
         messages[message.sessionId]?.add(message)
     }
 

@@ -29,7 +29,7 @@ class ChatService(
 
     suspend fun sendMessage(
         sessionId: UUID,
-        userContent: String
+        userQuery: String
     ): ChatMessage {
         val session = store.getSession(sessionId)
             ?: error("Session not found")
@@ -38,27 +38,12 @@ class ChatService(
             id = UUID.randomUUID(),
             sessionId = session.id,
             role = Role.USER,
-            content = userContent,
+            content = userQuery,
             createdAt = Instant.now()
         )
-
         store.addMessage(userMessage)
 
-        val history = store.getMessages(session.id)
-
-        val messagesForLlm = buildList {
-            add(
-                ChatMessage(
-                    id = UUID.randomUUID(),
-                    sessionId = session.id,
-                    role = Role.SYSTEM,
-                    content = session.systemPrompt,
-                    createdAt = Instant.EPOCH
-                )
-            )
-            addAll(history)
-        }
-
+        val messagesForLlm = buildPrompt(session)
         val responseText = llmClient.generate(
             model = session.model,
             messages = messagesForLlm
@@ -71,7 +56,6 @@ class ChatService(
             content = responseText,
             createdAt = Instant.now()
         )
-
         store.addMessage(assistantMessage)
 
         return assistantMessage
@@ -85,33 +69,18 @@ class ChatService(
         val session = store.getSession(sessionId)
             ?: error("Session not found")
 
-        // 1. Сохраняем сообщение пользователя
         store.addMessage(
             ChatMessage(
                 id = UUID.randomUUID(),
-                sessionId = sessionId,
+                sessionId = session.id,
                 role = Role.USER,
                 content = userQuery,
                 createdAt = Instant.now()
             )
         )
 
-        // 2. Стримим токены и копим текст
+        val messagesForLlm = buildPrompt(session)
         val assistantBuffer = StringBuilder()
-        val history = store.getMessages(sessionId)
-
-        val messagesForLlm = buildList {
-            add(
-                ChatMessage(
-                    id = UUID.randomUUID(),
-                    sessionId = sessionId,
-                    role = Role.SYSTEM,
-                    content = session.systemPrompt,
-                    createdAt = Instant.EPOCH
-                )
-            )
-            addAll(history)
-        }
 
         llmClient.stream(
             model = session.model,
@@ -121,16 +90,34 @@ class ChatService(
             onToken(token)
         }
 
-        // 3. Сохраняем результрующий ответ ИИ
         store.addMessage(
             ChatMessage(
                 id = UUID.randomUUID(),
-                sessionId = sessionId,
+                sessionId = session.id,
                 role = Role.ASSISTANT,
                 content = assistantBuffer.toString(),
                 createdAt = Instant.now()
             )
         )
+    }
+
+    private fun buildPrompt(session: ChatSession): List<ChatMessage> {
+        val history = store.getMessages(session.id)
+            .filter { it.role == Role.USER || it.role == Role.ASSISTANT }
+            .sortedBy { it.createdAt }
+
+        return buildList {
+            add(
+                ChatMessage(
+                    id = UUID.randomUUID(),
+                    sessionId = session.id,
+                    role = Role.SYSTEM,
+                    content = session.systemPrompt,
+                    createdAt = Instant.EPOCH
+                )
+            )
+            addAll(history)
+        }
     }
 
     fun listSessions(): List<ChatSession> =
@@ -141,5 +128,4 @@ class ChatService(
 
     fun getSessionMessages(sessionId: UUID): List<ChatMessage> =
         store.getMessages(sessionId)
-
 }
