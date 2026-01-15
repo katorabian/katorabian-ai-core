@@ -4,6 +4,7 @@ import com.katorabian.domain.ChatMessage
 import com.katorabian.domain.ChatSession
 import com.katorabian.domain.enum.Role
 import com.katorabian.llm.LlmClient
+import com.katorabian.llm.SystemPrompts
 import java.time.Instant
 import java.util.UUID
 
@@ -12,10 +13,14 @@ class ChatService(
     private val store: ChatSessionStore
 ) {
 
-    fun createSession(model: String): ChatSession {
+    fun createSession(
+        model: String,
+        systemPrompt: String?
+    ): ChatSession {
         val session = ChatSession(
             id = UUID.randomUUID(),
             model = model,
+            systemPrompt = systemPrompt ?: SystemPrompts.DEFAULT,
             createdAt = Instant.now()
         )
         store.createSession(session)
@@ -41,9 +46,22 @@ class ChatService(
 
         val history = store.getMessages(session.id)
 
+        val messagesForLlm = buildList {
+            add(
+                ChatMessage(
+                    id = UUID.randomUUID(),
+                    sessionId = session.id,
+                    role = Role.SYSTEM,
+                    content = session.systemPrompt,
+                    createdAt = Instant.EPOCH
+                )
+            )
+            addAll(history)
+        }
+
         val responseText = llmClient.generate(
             model = session.model,
-            messages = history
+            messages = messagesForLlm
         )
 
         val assistantMessage = ChatMessage(
@@ -80,9 +98,24 @@ class ChatService(
 
         // 2. Стримим токены и копим текст
         val assistantBuffer = StringBuilder()
+        val history = store.getMessages(sessionId)
+
+        val messagesForLlm = buildList {
+            add(
+                ChatMessage(
+                    id = UUID.randomUUID(),
+                    sessionId = sessionId,
+                    role = Role.SYSTEM,
+                    content = session.systemPrompt,
+                    createdAt = Instant.EPOCH
+                )
+            )
+            addAll(history)
+        }
+
         llmClient.stream(
             model = session.model,
-            messages = store.getMessages(sessionId)
+            messages = messagesForLlm
         ) { token ->
             assistantBuffer.append(token)
             onToken(token)

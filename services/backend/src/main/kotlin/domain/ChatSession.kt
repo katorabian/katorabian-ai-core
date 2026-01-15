@@ -6,5 +6,6 @@ import java.util.UUID
 data class ChatSession(
     val id: UUID,
     val model: String,
+    val systemPrompt: String,
     val createdAt: Instant
 )
