@@ -5,14 +5,16 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.serialization.Serializable
-import java.util.UUID
+import java.util.*
 
 fun Route.chatSessionRoutes(chatService: ChatService) {
 
     post("/api/v1/chat/sessions") { _ ->
         val req = call.receive<CreateSessionRequest>()
-        val session = chatService.createSession(req.model)
+        val session = chatService.createSession(
+            model = req.model,
+            systemPrompt = req.systemPrompt
+        )
         call.respond(CreateSessionResponse(session.id.toString()))
     }
 
