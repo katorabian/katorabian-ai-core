@@ -12,8 +12,7 @@ fun Route.chatSessionRoutes(chatService: ChatService) {
     post("/api/v1/chat/sessions") { _ ->
         val req = call.receive<CreateSessionRequest>()
         val session = chatService.createSession(
-            model = req.model,
-            systemPrompt = req.systemPrompt
+            model = req.model
         )
         call.respond(CreateSessionResponse(session.id.toString()))
     }
