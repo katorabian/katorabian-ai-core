@@ -5,8 +5,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class CreateSessionRequest(
-    val model: String,
-    val systemPrompt: String? = null
+    val model: String
 )
 
 @Serializable

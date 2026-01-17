@@ -4,23 +4,24 @@ import com.katorabian.domain.ChatMessage
 import com.katorabian.domain.ChatSession
 import com.katorabian.domain.enum.Role
 import com.katorabian.llm.LlmClient
-import com.katorabian.llm.SystemPrompts
+import com.katorabian.prompt.BehaviorPrompt
+import com.katorabian.prompt.PromptConfigFactory
 import java.time.Instant
-import java.util.UUID
+import java.util.*
 
 class ChatService(
     private val llmClient: LlmClient,
-    private val store: ChatSessionStore
+    private val store: ChatSessionStore,
+    private val promptConfigFactory: PromptConfigFactory
 ) {
 
     fun createSession(
-        model: String,
-        systemPrompt: String?
+        model: String
     ): ChatSession {
         val session = ChatSession(
             id = UUID.randomUUID(),
             model = model,
-            systemPrompt = systemPrompt ?: SystemPrompts.DEFAULT,
+            behaviorPreset = BehaviorPrompt.Preset.NEUTRAL,
             createdAt = Instant.now()
         )
         store.createSession(session)
@@ -106,13 +107,18 @@ class ChatService(
             .filter { it.role == Role.USER || it.role == Role.ASSISTANT }
             .sortedBy { it.createdAt }
 
+        val systemPrompt = promptConfigFactory.build(
+            behaviorPreset = session.behaviorPreset,
+            taskHints = emptyList() //TODO пока пусто, позже заполним
+        ).render()
+
         return buildList {
             add(
                 ChatMessage(
                     id = UUID.randomUUID(),
                     sessionId = session.id,
                     role = Role.SYSTEM,
-                    content = session.systemPrompt,
+                    content = systemPrompt,
                     createdAt = Instant.EPOCH
                 )
             )
