@@ -2,62 +2,40 @@ package com.katorabian.service.chat
 
 import com.katorabian.domain.ChatMessage
 import com.katorabian.domain.ChatSession
-import com.katorabian.domain.enum.Role
 import com.katorabian.llm.LlmClient
-import com.katorabian.storage.ChatSessionStore
-import java.time.Instant
 import java.util.UUID
 
 class ChatService(
-    private val llmClient: LlmClient,
-    private val store: ChatSessionStore,
-    private val promptService: PromptService
+    private val sessionService: ChatSessionService,
+    private val messageService: ChatMessageService,
+    private val promptService: PromptService,
+    private val llmClient: LlmClient
 ) {
 
-    fun createSession(model: String): ChatSession {
-        val session = ChatSession(
-            id = UUID.randomUUID(),
-            model = model,
-            behaviorPreset = com.katorabian.prompt.BehaviorPrompt.Preset.NEUTRAL,
-            createdAt = Instant.now()
-        )
-        store.createSession(session)
-        return session
-    }
+    fun createSession(model: String): ChatSession = sessionService.create(model)
 
     suspend fun sendMessage(
         sessionId: UUID,
         userQuery: String
     ): ChatMessage {
-        val session = store.getSession(sessionId)
-            ?: error("Session not found")
 
-        val userMessage = ChatMessage(
-            id = UUID.randomUUID(),
+        val session = sessionService.get(sessionId)
+
+        messageService.addUserMessage(
             sessionId = session.id,
-            role = Role.USER,
-            content = userQuery,
-            createdAt = Instant.now()
+            content = userQuery
         )
-        store.addMessage(userMessage)
 
         val prompt = promptService.buildPromptForSession(session)
-
-        val responseText = llmClient.generate(
+        val response = llmClient.generate(
             model = session.model,
             messages = prompt
         )
 
-        val assistantMessage = ChatMessage(
-            id = UUID.randomUUID(),
+        return messageService.addAssistantMessage(
             sessionId = session.id,
-            role = Role.ASSISTANT,
-            content = responseText,
-            createdAt = Instant.now()
+            content = response
         )
-        store.addMessage(assistantMessage)
-
-        return assistantMessage
     }
 
     suspend fun streamMessage(
@@ -65,47 +43,36 @@ class ChatService(
         userQuery: String,
         onToken: suspend (String) -> Unit
     ) {
-        val session = store.getSession(sessionId)
-            ?: error("Session not found")
+        val session = sessionService.get(sessionId)
 
-        store.addMessage(
-            ChatMessage(
-                id = UUID.randomUUID(),
-                sessionId = session.id,
-                role = Role.USER,
-                content = userQuery,
-                createdAt = Instant.now()
-            )
+        messageService.addUserMessage(
+            sessionId = session.id,
+            content = userQuery
         )
 
         val prompt = promptService.buildPromptForSession(session)
-        val assistantBuffer = StringBuilder()
+        val buffer = StringBuilder()
 
         llmClient.stream(
             model = session.model,
             messages = prompt
         ) { token ->
-            assistantBuffer.append(token)
+            buffer.append(token)
             onToken(token)
         }
 
-        store.addMessage(
-            ChatMessage(
-                id = UUID.randomUUID(),
-                sessionId = session.id,
-                role = Role.ASSISTANT,
-                content = assistantBuffer.toString(),
-                createdAt = Instant.now()
-            )
+        messageService.addAssistantMessage(
+            sessionId = session.id,
+            content = buffer.toString()
         )
     }
 
     fun getAllSessions(): List<ChatSession> =
-        store.getAllSessions()
+        sessionService.list()
 
-    fun getSession(sessionId: UUID): ChatSession? =
-        store.getSession(sessionId)
+    fun getSession(sessionId: UUID): ChatSession =
+        sessionService.get(sessionId)
 
     fun getSessionMessages(sessionId: UUID): List<ChatMessage> =
-        store.getMessages(sessionId)
+        messageService.getMessages(sessionId)
 }

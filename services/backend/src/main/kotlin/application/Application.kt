@@ -5,7 +5,9 @@ import com.katorabian.api.chat.chatStreamRoute
 import com.katorabian.llm.ollama.OllamaClient
 import com.katorabian.prompt.PromptAssembler
 import com.katorabian.prompt.PromptConfigFactory
+import com.katorabian.service.chat.ChatMessageService
 import com.katorabian.service.chat.ChatService
+import com.katorabian.service.chat.ChatSessionService
 import com.katorabian.service.chat.PromptService
 import com.katorabian.storage.ChatSessionStore
 import io.ktor.http.HttpHeaders
@@ -24,14 +26,20 @@ import kotlinx.serialization.Serializable
 fun main() {
     val llmClient = OllamaClient()
     val store = ChatSessionStore()
+
+    val sessionService = ChatSessionService(store)
+    val messageService = ChatMessageService(store)
+
     val promptAssembler = PromptAssembler(PromptConfigFactory())
     val promptService = PromptService(store, promptAssembler)
 
     val chatService = ChatService(
-        llmClient = llmClient,
-        store = store,
-        promptService = promptService
+        sessionService = sessionService,
+        messageService = messageService,
+        promptService = promptService,
+        llmClient = llmClient
     )
+
 
     embeddedServer(Netty, port = 8080) {
         install(ContentNegotiation) {
