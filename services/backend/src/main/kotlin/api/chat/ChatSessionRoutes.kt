@@ -1,6 +1,6 @@
 package com.katorabian.api.chat
 
-import com.katorabian.service.ChatService
+import com.katorabian.service.chat.ChatService
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -26,7 +26,7 @@ fun Route.chatSessionRoutes(chatService: ChatService) {
     }
 
     get("/api/v1/chat/sessions") {
-        val sessions = chatService.listSessions()
+        val sessions = chatService.getAllSessions()
         call.respond(
             sessions.map {
                 ChatSessionDto(

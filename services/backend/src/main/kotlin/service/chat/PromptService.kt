@@ -1,0 +1,24 @@
+package com.katorabian.service.chat
+
+import com.katorabian.domain.ChatMessage
+import com.katorabian.domain.ChatSession
+import com.katorabian.prompt.PromptAssembler
+import com.katorabian.storage.ChatSessionStore
+
+class PromptService(
+    private val store: ChatSessionStore,
+    private val assembler: PromptAssembler
+) {
+
+    fun buildPromptForSession(
+        session: ChatSession,
+        taskHints: List<String> = emptyList()
+    ): List<ChatMessage> {
+        val history = store.getMessages(session.id)
+        return assembler.assemble(
+            session = session,
+            history = history,
+            taskHints = taskHints
+        )
+    }
+}

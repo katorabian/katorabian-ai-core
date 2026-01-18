@@ -1,27 +1,24 @@
-package com.katorabian.service
+package com.katorabian.service.chat
 
 import com.katorabian.domain.ChatMessage
 import com.katorabian.domain.ChatSession
 import com.katorabian.domain.enum.Role
 import com.katorabian.llm.LlmClient
-import com.katorabian.prompt.BehaviorPrompt
-import com.katorabian.prompt.PromptConfigFactory
+import com.katorabian.storage.ChatSessionStore
 import java.time.Instant
-import java.util.*
+import java.util.UUID
 
 class ChatService(
     private val llmClient: LlmClient,
     private val store: ChatSessionStore,
-    private val promptConfigFactory: PromptConfigFactory
+    private val promptService: PromptService
 ) {
 
-    fun createSession(
-        model: String
-    ): ChatSession {
+    fun createSession(model: String): ChatSession {
         val session = ChatSession(
             id = UUID.randomUUID(),
             model = model,
-            behaviorPreset = BehaviorPrompt.Preset.NEUTRAL,
+            behaviorPreset = com.katorabian.prompt.BehaviorPrompt.Preset.NEUTRAL,
             createdAt = Instant.now()
         )
         store.createSession(session)
@@ -44,10 +41,11 @@ class ChatService(
         )
         store.addMessage(userMessage)
 
-        val messagesForLlm = buildPrompt(session)
+        val prompt = promptService.buildPromptForSession(session)
+
         val responseText = llmClient.generate(
             model = session.model,
-            messages = messagesForLlm
+            messages = prompt
         )
 
         val assistantMessage = ChatMessage(
@@ -80,12 +78,12 @@ class ChatService(
             )
         )
 
-        val messagesForLlm = buildPrompt(session)
+        val prompt = promptService.buildPromptForSession(session)
         val assistantBuffer = StringBuilder()
 
         llmClient.stream(
             model = session.model,
-            messages = messagesForLlm
+            messages = prompt
         ) { token ->
             assistantBuffer.append(token)
             onToken(token)
@@ -102,31 +100,7 @@ class ChatService(
         )
     }
 
-    private fun buildPrompt(session: ChatSession): List<ChatMessage> {
-        val history = store.getMessages(session.id)
-            .filter { it.role == Role.USER || it.role == Role.ASSISTANT }
-            .sortedBy { it.createdAt }
-
-        val systemPrompt = promptConfigFactory.build(
-            behaviorPreset = session.behaviorPreset,
-            taskHints = emptyList() //TODO пока пусто, позже заполним
-        ).render()
-
-        return buildList {
-            add(
-                ChatMessage(
-                    id = UUID.randomUUID(),
-                    sessionId = session.id,
-                    role = Role.SYSTEM,
-                    content = systemPrompt,
-                    createdAt = Instant.EPOCH
-                )
-            )
-            addAll(history)
-        }
-    }
-
-    fun listSessions(): List<ChatSession> =
+    fun getAllSessions(): List<ChatSession> =
         store.getAllSessions()
 
     fun getSession(sessionId: UUID): ChatSession? =

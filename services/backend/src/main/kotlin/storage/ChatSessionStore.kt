@@ -1,4 +1,4 @@
-package com.katorabian.service
+package com.katorabian.storage
 
 import com.katorabian.domain.ChatMessage
 import com.katorabian.domain.ChatSession
@@ -30,5 +30,4 @@ class ChatSessionStore {
 
     fun getAllSessions(): List<ChatSession> =
         sessions.values.sortedBy { it.createdAt }
-
 }

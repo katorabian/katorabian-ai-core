@@ -1,6 +1,6 @@
 package com.katorabian.api.chat
 
-import com.katorabian.service.ChatService
+import com.katorabian.service.chat.ChatService
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
