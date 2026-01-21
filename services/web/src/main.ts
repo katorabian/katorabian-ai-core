@@ -153,37 +153,40 @@ async function sendMessage() {
     `${API_BASE}/chat/sessions/${currentSessionId}/stream?message=${encodeURIComponent(text)}`
   );
 
-  eventSource.addEventListener("token", (e) => {
+  // ✅ ВАЖНО: бек всегда шлёт event: message
+  eventSource.addEventListener("message", (e) => {
     const data = JSON.parse((e as MessageEvent).data);
 
-    if (firstToken) {
-      assistantEl.innerHTML = `<b>assistant</b>: `;
-      firstToken = false;
+    // Thinking
+    if (data.message === "thinking") {
+      assistantEl.textContent = "thinking...";
+      return;
     }
 
-    assistantEl.innerHTML += data.text;
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-  });
+    // Token stream
+    if (data.text) {
+      if (firstToken) {
+        assistantEl.innerHTML = `<b>assistant</b>: `;
+        firstToken = false;
+      }
 
-  eventSource.addEventListener("done", async () => {
-    eventSource.close();
+      assistantEl.innerHTML += data.text;
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return;
+    }
 
-    eventSource.addEventListener("done", async () => {
+    // Completed
+    if (data.fullText) {
+      assistantEl.innerHTML = `<b>assistant</b>: ${data.fullText}`;
       eventSource.close();
+      return;
+    }
 
-      const res = await fetch(
-        `${API_BASE}/chat/sessions/${currentSessionId}/messages`
-      );
-      const messages: ChatMessage[] = await res.json();
-
-      // аккуратный reconciliation
-      messagesEl.innerHTML = messages
-        .map(
-          (m) =>
-            `<div><b>${m.role}</b>: ${m.content}</div>`
-        )
-        .join("");
-    });
+    // Error
+    if (data.message) {
+      assistantEl.textContent = `Ошибка: ${data.message}`;
+      eventSource.close();
+    }
   });
 
   eventSource.onerror = () => {
