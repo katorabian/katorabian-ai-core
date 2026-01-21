@@ -92,7 +92,7 @@ class ChatService(
 
                     val full = buffer.toString()
                     messageService.addAssistantMessage(session.id, full)
-                    emit(ChatEvent.Completed(full))
+                    emit(ChatEvent.Completed())
 
                 }.getOrElse {
                     emit(ChatEvent.Error(it.message ?: "Unknown error"))
