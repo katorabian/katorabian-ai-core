@@ -1,5 +1,10 @@
 package com.katorabian.api.chat
 
+import com.katorabian.domain.chat.ChatMessageDto
+import com.katorabian.domain.chat.ChatSessionDto
+import com.katorabian.domain.chat.CreateSessionRequest
+import com.katorabian.domain.chat.CreateSessionResponse
+import com.katorabian.domain.chat.SendMessageRequest
 import com.katorabian.service.chat.ChatService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*

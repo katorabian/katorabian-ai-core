@@ -1,4 +1,4 @@
-package com.katorabian.api.chat
+package com.katorabian.domain.chat
 
 import kotlinx.serialization.Serializable
 

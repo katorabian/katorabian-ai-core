@@ -23,9 +23,9 @@ fun Route.chatStreamRoute(chatService: ChatService) {
             chatService.streamMessage(
                 sessionId = sessionId,
                 userQuery = message
-            ) { token ->
-                val json = Json.encodeToString(mapOf("text" to token))
-                write("event: token\n")
+            ) { event ->
+                val json = ChatEventEncoder.encode(event)
+                write("event: message\n")
                 write("""data: $json""")
                 write("\n\n")
                 flush()

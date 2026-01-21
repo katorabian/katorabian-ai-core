@@ -2,6 +2,7 @@ package com.katorabian.service.chat
 
 import com.katorabian.domain.ChatMessage
 import com.katorabian.domain.ChatSession
+import com.katorabian.domain.chat.ChatEvent
 import com.katorabian.llm.LlmClient
 import com.katorabian.service.input.UserInputProcessor
 import com.katorabian.service.message.ChatMessageService
@@ -58,7 +59,7 @@ class ChatService(
     suspend fun streamMessage(
         sessionId: UUID,
         userQuery: String,
-        onToken: suspend (String) -> Unit
+        emit: suspend (ChatEvent) -> Unit
     ) {
         val session = sessionService.get(sessionId)
 
@@ -66,27 +67,36 @@ class ChatService(
             session = session,
             input = userQuery
         ).fold(
-            onSystemResponse = onToken,
-            onForwardToLlm  = { userMessage ->
+            onSystemResponse = { text ->
+                emit(ChatEvent.SystemMessage(text))
+            },
+            onForwardToLlm = { userMessage ->
+
                 messageService.addUserMessage(session.id, userMessage)
+
+                emit(ChatEvent.Thinking())
 
                 val buffer = StringBuilder()
                 val prompt = promptService.buildPromptForSession(session)
 
-                modelService.withInference(session.model) {
-                    llmClient.stream(
-                        model = session.model,
-                        messages = prompt
-                    ) { token ->
-                        buffer.append(token)
-                        onToken(token)
+                runCatching {
+                    modelService.withInference(session.model) {
+                        llmClient.stream(
+                            model = session.model,
+                            messages = prompt
+                        ) { token ->
+                            buffer.append(token)
+                            emit(ChatEvent.Token(token))
+                        }
                     }
-                }
 
-                messageService.addAssistantMessage(
-                    sessionId = session.id,
-                    content = buffer.toString()
-                )
+                    val full = buffer.toString()
+                    messageService.addAssistantMessage(session.id, full)
+                    emit(ChatEvent.Completed(full))
+
+                }.getOrElse {
+                    emit(ChatEvent.Error(it.message ?: "Unknown error"))
+                }
             }
         )
     }
