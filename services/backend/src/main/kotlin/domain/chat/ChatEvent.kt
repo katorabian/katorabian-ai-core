@@ -16,9 +16,7 @@ sealed interface ChatEvent {
     ) : ChatEvent
 
     @Serializable
-    data class Completed(
-        val reason: String = "done"
-    ) : ChatEvent
+    data object Completed : ChatEvent
 
     @Serializable
     data class SystemMessage(

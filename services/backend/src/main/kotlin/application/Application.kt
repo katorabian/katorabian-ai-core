@@ -92,19 +92,6 @@ fun main() {
                 call.respondText("OK")
             }
 
-            post("/api/v1/chat") { _ ->
-                val req = call.receive<ChatRequest>()
-
-                val session = chatService.createSession()
-                val response = chatService.sendMessage(session.id, req.message)
-
-                call.respond(
-                    ChatResponse(
-                        content = response.content
-                    )
-                )
-            }
-
             chatSessionRoutes(chatService)
             chatStreamRoute(chatService)
 
@@ -112,14 +99,3 @@ fun main() {
         }
     }.start(wait = true)
 }
-
-@Serializable
-data class ChatRequest(
-    val model: String,
-    val message: String
-)
-
-@Serializable
-data class ChatResponse(
-    val content: String
-)
