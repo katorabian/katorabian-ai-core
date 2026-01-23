@@ -95,7 +95,7 @@ fun main() {
             post("/api/v1/chat") { _ ->
                 val req = call.receive<ChatRequest>()
 
-                val session = chatService.createSession(req.model)
+                val session = chatService.createSession()
                 val response = chatService.sendMessage(session.id, req.message)
 
                 call.respond(

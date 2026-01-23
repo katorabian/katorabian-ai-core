@@ -5,7 +5,6 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ChatSessionDto(
     val id: String,
-    val model: String,
     val createdAt: String
 )
 

@@ -2,7 +2,6 @@ package com.katorabian.api.chat
 
 import com.katorabian.domain.chat.ChatMessageDto
 import com.katorabian.domain.chat.ChatSessionDto
-import com.katorabian.domain.chat.CreateSessionRequest
 import com.katorabian.domain.chat.CreateSessionResponse
 import com.katorabian.domain.chat.SendMessageRequest
 import com.katorabian.service.chat.ChatService
@@ -16,10 +15,7 @@ import java.util.*
 fun Route.chatSessionRoutes(chatService: ChatService) {
 
     post("/api/v1/chat/sessions") { _ ->
-        val req = call.receive<CreateSessionRequest>()
-        val session = chatService.createSession(
-            model = req.model
-        )
+        val session = chatService.createSession()
         call.respond(CreateSessionResponse(session.id.toString()))
     }
 
@@ -37,7 +33,6 @@ fun Route.chatSessionRoutes(chatService: ChatService) {
             sessions.map {
                 ChatSessionDto(
                     id = it.id.toString(),
-                    model = it.model,
                     createdAt = it.createdAt.toString()
                 )
             }
@@ -55,7 +50,6 @@ fun Route.chatSessionRoutes(chatService: ChatService) {
         call.respond(
             ChatSessionDto(
                 id = session.id.toString(),
-                model = session.model,
                 createdAt = session.createdAt.toString()
             )
         )

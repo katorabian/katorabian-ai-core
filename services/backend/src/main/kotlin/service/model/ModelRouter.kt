@@ -5,12 +5,17 @@ class ModelRouter(
     private val fallbackOrder: List<String>
 ) {
 
-    fun resolve(primaryModelId: String, modelService: ModelService): ModelDescriptor {
+    fun resolve(
+        primaryModelId: String?,
+        modelService: ModelService
+    ): ModelDescriptor {
         // 1. Пробуем primary
-        models[primaryModelId]?.let { primary ->
-            val state = modelService.getState(primary.id)
-            if (state != ModelRuntimeState.ERROR) {
-                return primary
+        if (primaryModelId != null) {
+            models[primaryModelId]?.let { primary ->
+                val state = modelService.getState(primary.id)
+                if (state != ModelRuntimeState.ERROR) {
+                    return primary
+                }
             }
         }
 

@@ -10,10 +10,9 @@ class ChatSessionService(
     private val store: ChatSessionStore
 ) {
 
-    fun create(model: String): ChatSession {
+    fun create(): ChatSession {
         val session = ChatSession(
             id = UUID.randomUUID(),
-            model = model,
             behaviorPreset = BehaviorPrompt.Preset.NEUTRAL,
             createdAt = Instant.now()
         )

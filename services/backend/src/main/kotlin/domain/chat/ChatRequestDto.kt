@@ -4,11 +4,6 @@ import kotlinx.serialization.Serializable
 
 
 @Serializable
-data class CreateSessionRequest(
-    val model: String
-)
-
-@Serializable
 data class CreateSessionResponse(val sessionId: String)
 
 @Serializable

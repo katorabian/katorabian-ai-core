@@ -20,8 +20,7 @@ class ChatService(
     private val inputProcessor: UserInputProcessor
 ) {
 
-    fun createSession(model: String): ChatSession =
-        sessionService.create(model)
+    fun createSession(): ChatSession = sessionService.create()
 
     suspend fun sendMessage(
         sessionId: UUID,
@@ -42,7 +41,7 @@ class ChatService(
 
                 val prompt = promptService.buildPromptForSession(session)
                 val model = modelRouter.resolve(
-                    primaryModelId = session.model,
+                    primaryModelId = null,
                     modelService = modelService
                 )
                 val response = modelService.withInference(model) {
@@ -85,7 +84,7 @@ class ChatService(
 
                 runCatching {
                     val model = modelRouter.resolve(
-                        primaryModelId = session.model,
+                        primaryModelId = null,
                         modelService = modelService
                     )
                     modelService.withInference(model) {
