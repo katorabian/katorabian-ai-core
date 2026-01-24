@@ -1,0 +1,9 @@
+package com.katorabian.domain
+
+object Constants {
+    const val ZERO = 0
+    const val NOT_FOUND = -1
+
+    // IO
+    const val LLM_READ_BUFFER = 8 * 1024
+}

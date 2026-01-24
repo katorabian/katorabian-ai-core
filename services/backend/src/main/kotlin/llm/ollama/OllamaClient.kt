@@ -1,6 +1,9 @@
 package com.katorabian.llm.ollama
 
 import com.katorabian.domain.ChatMessage
+import com.katorabian.domain.Constants.LLM_READ_BUFFER
+import com.katorabian.domain.Constants.NOT_FOUND
+import com.katorabian.domain.Constants.ZERO
 import com.katorabian.domain.enum.Role
 import com.katorabian.llm.LlmClient
 import io.ktor.client.*
@@ -76,19 +79,36 @@ class OllamaClient(
         }.bodyAsChannel()
 
         val json = Json { ignoreUnknownKeys = true }
+        val buffer = StringBuilder()
+        val readBuffer = ByteArray(LLM_READ_BUFFER)
 
         while (!channel.isClosedForRead) {
-            val line = channel.readUTF8Line(DEFAULT_BUFFER_SIZE)?: continue
-            val chunk = json.decodeFromString<OllamaResponse>(line)
+            val read = channel.readAvailable(readBuffer, ZERO, readBuffer.size)
+            if (read <= ZERO) continue
 
-            if (chunk.response.isNotEmpty()) {
-                onToken(chunk.response)
+            buffer.append(String(readBuffer, ZERO, read, Charsets.UTF_8))
+
+            var newlineIndex: Int
+            while (true) {
+                newlineIndex = buffer.indexOf("\n")
+                    .takeIf { it != NOT_FOUND }
+                    ?: break
+
+                val line = buffer.substring(ZERO, newlineIndex).trim()
+                buffer.delete(ZERO, newlineIndex + 1)
+                if (line.isEmpty()) continue
+
+                val chunk = json.decodeFromString<OllamaResponse>(line)
+                if (chunk.response.isNotEmpty()) {
+                    onToken(chunk.response)
+                }
+
+                if (chunk.done) {
+                    return
+                }
             }
-
-            if (chunk.done) break
         }
     }
-
     private fun buildPrompt(messages: List<ChatMessage>): String {
         return messages.joinToString("\n") { msg ->
             when (msg.role) {
