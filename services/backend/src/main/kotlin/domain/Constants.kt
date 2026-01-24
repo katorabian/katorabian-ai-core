@@ -6,4 +6,5 @@ object Constants {
 
     // IO
     const val LLM_READ_BUFFER = 8 * 1024
+    const val MAX_SSE_CHUNK_SIZE = 512
 }

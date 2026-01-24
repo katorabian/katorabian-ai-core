@@ -2,6 +2,7 @@ package com.katorabian.service.chat
 
 import com.katorabian.domain.ChatMessage
 import com.katorabian.domain.ChatSession
+import com.katorabian.domain.Constants.MAX_SSE_CHUNK_SIZE
 import com.katorabian.domain.chat.ChatEvent
 import com.katorabian.service.input.UserInputProcessor
 import com.katorabian.service.message.ChatMessageService
@@ -88,13 +89,16 @@ class ChatService(
                         input = userQuery,
                         modelService = modelService
                     ).also { println("Using model: ${it.id} (${it.role})") }
+
                     modelService.withInference(model) {
                         model.client.stream(
                             model = model.id,
                             messages = prompt
-                        ) { token ->
-                            buffer.append(token)
-                            emit(ChatEvent.Token(token))
+                        ) { chunk ->
+                            buffer.append(chunk)
+                            splitForSse(chunk).forEach { safePart ->
+                                emit(ChatEvent.Token(safePart))
+                            }
                         }
                     }
 
@@ -117,4 +121,7 @@ class ChatService(
 
     fun getSessionMessages(sessionId: UUID): List<ChatMessage> =
         messageService.getMessages(sessionId)
+
+    private fun splitForSse(text: String): List<String> =
+        text.chunked(MAX_SSE_CHUNK_SIZE)
 }
