@@ -4,8 +4,12 @@ import com.katorabian.domain.ChatMessage
 import com.katorabian.domain.ChatSession
 import com.katorabian.domain.Constants.MAX_SSE_CHUNK_SIZE
 import com.katorabian.domain.chat.ChatEvent
+import com.katorabian.service.gatekeeper.ExecutionTarget
+import com.katorabian.service.gatekeeper.Gatekeeper
+import com.katorabian.service.gatekeeper.RuleBasedGatekeeper
 import com.katorabian.service.input.UserInputProcessor
 import com.katorabian.service.message.ChatMessageService
+import com.katorabian.service.model.ModelDescriptor
 import com.katorabian.service.model.ModelRouter
 import com.katorabian.service.model.ModelService
 import com.katorabian.service.prompt.PromptService
@@ -20,6 +24,7 @@ class ChatService(
     private val modelService: ModelService,
     private val inputProcessor: UserInputProcessor
 ) {
+    private val gatekeeper: Gatekeeper = RuleBasedGatekeeper()
 
     fun createSession(): ChatSession = sessionService.create()
 
@@ -41,11 +46,7 @@ class ChatService(
                 messageService.addUserMessage(session.id, userMessage)
 
                 val prompt = promptService.buildPromptForSession(session)
-                val model = modelRouter.resolve(
-                    input = userQuery,
-                    modelService = modelService
-                ).also { println("Using model: ${it.id} (${it.role})") }
-
+                val model = defineModel(gatekeeper, userQuery, modelService, session)
                 val response = modelService.withInference(model) {
                     model.client.generate(
                         model = model.id,
@@ -85,11 +86,7 @@ class ChatService(
                 val prompt = promptService.buildPromptForSession(session)
 
                 runCatching {
-                    val model = modelRouter.resolve(
-                        input = userQuery,
-                        modelService = modelService
-                    ).also { println("Using model: ${it.id} (${it.role})") }
-
+                    val model = defineModel(gatekeeper, userQuery, modelService, session)
                     modelService.withInference(model) {
                         model.client.stream(
                             model = model.id,
@@ -111,6 +108,44 @@ class ChatService(
                 }
             }
         )
+    }
+
+    private suspend fun defineModel(
+        gatekeeper: Gatekeeper,
+        userQuery: String,
+        modelService: ModelService,
+        session: ChatSession,
+    ): ModelDescriptor {
+
+        val decision = gatekeeper.decide(
+            input = userQuery,
+            history = messageService.getMessages(session.id)
+        )
+
+        val model = when (decision.target) {
+            ExecutionTarget.REMOTE -> runCatching {
+                modelRouter.resolveRemote(
+                    input = userQuery,
+                    modelService = modelService
+                )
+            }.getOrElse {
+                // fallback если remote умер / не реализован
+                modelRouter.resolveLocal(
+                    input = userQuery,
+                    modelService = modelService
+                )
+            }
+            ExecutionTarget.LOCAL -> {
+                modelRouter.resolveLocal(
+                    input = userQuery,
+                    modelService = modelService
+                )
+            }
+        }
+
+        return model.also {
+            println("Using model: ${it.id} (${it.role}) | decision=${decision.reason}")
+        }
     }
 
     fun getAllSessions(): List<ChatSession> =

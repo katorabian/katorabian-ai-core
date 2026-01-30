@@ -33,7 +33,7 @@ import java.io.File
 fun main() {
     val llamaServer = LlamaServerProcess(
         llamaDir = File("F:/llm/llama.cpp-12.4"),
-        modelPath = File("F:/llm/models/GPT-OSS-20B-Uncensored-HauhauCS-MXFP4-Aggressive.gguf")
+        modelPath = File("F:/llm/models/Mistral-Nemo-2407-12B-Thinking-Claude-Gemini-GPT5.2-Uncensored-HERETIC.Q8_0.gguf")
     )
 
     val llamaClient = LlamaCppClient(llamaServer)

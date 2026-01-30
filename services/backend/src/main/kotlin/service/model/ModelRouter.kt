@@ -5,7 +5,7 @@ class ModelRouter(
     private val fallbackOrder: List<ModelRole>
 ) {
 
-    fun resolve(
+    fun resolveLocal(
         input: String,
         modelService: ModelService
     ): ModelDescriptor {
@@ -29,6 +29,14 @@ class ModelRouter(
         }
 
         error("No available models")
+    }
+
+    @Deprecated("Заглушка пока я не придумал как привезти сюда Remote")
+    fun resolveRemote(
+        input: String,
+        modelService: ModelService
+    ): ModelDescriptor {
+        error("Remote models are not configured yet")
     }
 
     fun allModels(): List<ModelDescriptor> = models
