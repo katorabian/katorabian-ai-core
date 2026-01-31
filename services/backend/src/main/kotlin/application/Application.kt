@@ -3,6 +3,8 @@ package com.katorabian.application
 import com.katorabian.api.chat.chatSessionRoutes
 import com.katorabian.api.chat.chatStreamRoute
 import com.katorabian.api.model.modelRoutes
+import com.katorabian.domain.Utils.toFile
+import com.katorabian.llm.gatekeeper.LlmGatekeeper
 import com.katorabian.llm.llamacpp.LlamaCppClient
 import com.katorabian.llm.llamacpp.LlamaServerProcess
 import com.katorabian.prompt.PromptConfigFactory
@@ -33,12 +35,12 @@ import java.io.File
 fun main() {
     val llamaServer = LlamaServerProcess(
         llamaDir = File("F:/llm/llama.cpp-12.4"),
-        modelPath = File("F:/llm/models/Mistral-Nemo-2407-12B-Thinking-Claude-Gemini-GPT5.2-Uncensored-HERETIC.Q8_0.gguf")
+        modelPath = ModelPresets.LocalChat.modelPath.toFile()
     )
 
     val llamaClient = LlamaCppClient(llamaServer)
     val models = listOf(
-        ModelPresets.smartChat(llamaClient)
+        ModelPresets.LocalChat
     )
 
     val modelService = ModelService(models)
@@ -46,6 +48,9 @@ fun main() {
         models = models,
         fallbackOrder = listOf(ModelRole.CHAT)
     )
+
+    val gatekeeperDescriptor = ModelPresets.Gatekeeper
+    val gatekeeper = LlmGatekeeper(gatekeeperDescriptor, llamaClient)
 
 
     val store = ChatSessionStore()
@@ -67,12 +72,14 @@ fun main() {
     )
 
     val chatService = ChatService(
+        llmClient = llamaClient,
         sessionService = sessionService,
         messageService = messageService,
         promptService = promptService,
         modelRouter = modelRouter,
         modelService = modelService,
-        inputProcessor = inputProcessor
+        inputProcessor = inputProcessor,
+        gatekeeper = gatekeeper
     )
 
 
