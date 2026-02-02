@@ -1,52 +1,51 @@
 package com.katorabian.service.input
 
-import com.katorabian.service.chat.UserInputResult
 import com.katorabian.domain.ChatSession
+import com.katorabian.service.chat.UserInputResult
+import com.katorabian.service.gatekeeper.GatekeeperDecision
 import com.katorabian.service.session.ChatSessionService
 
 class UserInputProcessor(
-    private val commandParser: CommandParser,
     private val commandExecutor: CommandExecutor,
-    private val intentDetector: ProseIntentDetector,
     private val sessionService: ChatSessionService
 ) {
 
     fun process(
         session: ChatSession,
-        input: String
+        input: String,
+        decision: GatekeeperDecision
     ): UserInputResult {
 
-        // 1. Консольная команда
-        commandParser.parse(input)?.let { command ->
-            val response = commandExecutor.execute(session, command)
-            return UserInputResult.CommandHandled(response)
-        }
+        return when (val intent = decision.intent) {
 
-        // 2. Запрос в просьбе
-        intentDetector.detect(input)?.let { intent ->
-            return handleIntent(session, intent)
-        }
+            is UserIntent.Command -> {
+                val command = decision.command
+                    ?: return UserInputResult.SystemMessage(
+                        "Команда не распознана."
+                    )
 
-        // 3. Обычное сообщение
-        return UserInputResult.ForwardToLlm(input)
-    }
+                val response = commandExecutor.execute(
+                    session = session,
+                    command = command
+                )
 
-    private fun handleIntent(
-        session: ChatSession,
-        intent: ProseIntent
-    ): UserInputResult {
+                UserInputResult.SystemMessage(response)
+            }
 
-        return when (intent) {
-            is ProseIntent.ChangeStyle -> {
+            is UserIntent.ChangeStyle -> {
                 sessionService.updateBehavior(
                     sessionId = session.id,
                     preset = intent.preset
                 )
 
-                UserInputResult.IntentHandled(
-                    systemResponse =
-                        "Хорошо. Теперь я буду отвечать в стиле: ${intent.preset.name.lowercase()}."
+                UserInputResult.SystemMessage(
+                    "Хорошо. Теперь я буду отвечать в стиле: ${intent.preset.name.lowercase()}."
                 )
+            }
+
+            UserIntent.Chat,
+            UserIntent.Code -> {
+                UserInputResult.ForwardToLlm(input)
             }
         }
     }

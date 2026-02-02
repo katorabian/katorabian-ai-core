@@ -7,6 +7,7 @@ import com.katorabian.domain.chat.ChatEvent
 import com.katorabian.llm.LlmClient
 import com.katorabian.service.gatekeeper.ExecutionTarget
 import com.katorabian.service.gatekeeper.Gatekeeper
+import com.katorabian.service.gatekeeper.GatekeeperDecision
 import com.katorabian.service.input.UserInputProcessor
 import com.katorabian.service.message.ChatMessageService
 import com.katorabian.service.model.ModelDescriptor
@@ -35,10 +36,12 @@ class ChatService(
     ): ChatMessage {
 
         val session = sessionService.get(sessionId)
+        val decision = gatekeeper.interpret(userQuery)
 
         return inputProcessor.process(
             session = session,
-            input = userQuery
+            input = userQuery,
+            decision = decision
         ).fold(
             onSystemResponse = { userMessage ->
                 messageService.addAssistantMessage(session.id, userMessage)
@@ -47,7 +50,7 @@ class ChatService(
                 messageService.addUserMessage(session.id, userMessage)
 
                 val prompt = promptService.buildPromptForSession(session)
-                val model = defineModel(gatekeeper, userQuery, modelService)
+                val model = defineModel(decision, userQuery, modelService)
                 val response = modelService.withInference(model) {
                     llmClient.generate(
                         model = model.id,
@@ -69,10 +72,12 @@ class ChatService(
         emit: suspend (ChatEvent) -> Unit
     ) {
         val session = sessionService.get(sessionId)
+        val decision = gatekeeper.interpret(userQuery)
 
         inputProcessor.process(
             session = session,
-            input = userQuery
+            input = userQuery,
+            decision = decision
         ).fold(
             onSystemResponse = { text ->
                 emit(ChatEvent.SystemMessage(text))
@@ -87,7 +92,7 @@ class ChatService(
                 val prompt = promptService.buildPromptForSession(session)
 
                 runCatching {
-                    val model = defineModel(gatekeeper, userQuery, modelService)
+                    val model = defineModel(decision, userQuery, modelService)
                     modelService.withInference(model) {
                         llmClient.stream(
                             model = model.id,
@@ -111,27 +116,26 @@ class ChatService(
         )
     }
 
-    private suspend fun defineModel(
-        gatekeeper: Gatekeeper,
+    private fun defineModel(
+        decision: GatekeeperDecision,
         userQuery: String,
         modelService: ModelService,
     ): ModelDescriptor {
 
-        val decision = gatekeeper.decide(input = userQuery)
+        val model = when (decision.executionTarget) {
 
-        val model = when (decision.target) {
             ExecutionTarget.REMOTE -> runCatching {
                 modelRouter.resolveRemote(
                     input = userQuery,
                     modelService = modelService
                 )
             }.getOrElse {
-                // fallback если remote умер / не реализован
                 modelRouter.resolveLocal(
                     input = userQuery,
                     modelService = modelService
                 )
             }
+
             ExecutionTarget.LOCAL -> {
                 modelRouter.resolveLocal(
                     input = userQuery,
@@ -141,7 +145,11 @@ class ChatService(
         }
 
         return model.also {
-            println("Using model: ${it.id} (${it.role}) | decision=${decision.reason}")
+            println(
+                "Using model: ${it.id} (${it.role}) | " +
+                        "intent=${decision.intent} | " +
+                        "reason=${decision.reason}"
+            )
         }
     }
 

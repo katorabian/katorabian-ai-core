@@ -7,21 +7,18 @@ sealed interface UserInputResult {
         onForwardToLlm: suspend (String) -> T
     ): T
 
-    data class CommandHandled(val systemResponse: String) : UserInputResult {
+    data class SystemMessage(
+        val text: String
+    ) : UserInputResult {
         override suspend fun <T> fold(
             onSystemResponse: suspend (String) -> T,
             onForwardToLlm: suspend (String) -> T
-        ): T = onSystemResponse(systemResponse)
+        ): T = onSystemResponse(text)
     }
 
-    data class IntentHandled(val systemResponse: String) : UserInputResult {
-        override suspend fun <T> fold(
-            onSystemResponse: suspend (String) -> T,
-            onForwardToLlm: suspend (String) -> T
-        ): T = onSystemResponse(systemResponse)
-    }
-
-    data class ForwardToLlm(val userMessage: String) : UserInputResult {
+    data class ForwardToLlm(
+        val userMessage: String
+    ) : UserInputResult {
         override suspend fun <T> fold(
             onSystemResponse: suspend (String) -> T,
             onForwardToLlm: suspend (String) -> T

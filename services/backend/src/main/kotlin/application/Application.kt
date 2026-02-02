@@ -8,12 +8,9 @@ import com.katorabian.llm.gatekeeper.LlmGatekeeper
 import com.katorabian.llm.llamacpp.LlamaChatServer
 import com.katorabian.llm.llamacpp.LlamaCppClient
 import com.katorabian.llm.llamacpp.LlamaGatekeeperServer
-import com.katorabian.llm.llamacpp.LlamaServerProcess
 import com.katorabian.prompt.PromptConfigFactory
 import com.katorabian.service.chat.ChatService
 import com.katorabian.service.input.CommandExecutor
-import com.katorabian.service.input.CommandParser
-import com.katorabian.service.input.ProseIntentDetector
 import com.katorabian.service.input.UserInputProcessor
 import com.katorabian.service.message.ChatMessageService
 import com.katorabian.service.model.ModelRole
@@ -72,14 +69,10 @@ fun main() {
     val promptAssembler = PromptAssembler(PromptConfigFactory())
     val promptService = PromptService(store, promptAssembler)
 
-    val commandParser = CommandParser()
+    // commands
     val commandExecutor = CommandExecutor(sessionService)
-    val intentDetector = ProseIntentDetector()
-
     val inputProcessor = UserInputProcessor(
-        commandParser = commandParser,
         commandExecutor = commandExecutor,
-        intentDetector = intentDetector,
         sessionService = sessionService
     )
 
