@@ -148,48 +148,81 @@ async function sendMessage() {
   messagesEl.appendChild(assistantEl);
   let firstToken = true;
 
-  // 4️⃣ запускаем SSE
-  const eventSource = new EventSource(
-    `${API_BASE}/chat/sessions/${currentSessionId}/stream?message=${encodeURIComponent(text)}`
+  // 4️⃣ запускаем POST + SSE
+  const response = await fetch(
+    `${API_BASE}/chat/sessions/${currentSessionId}/stream`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+      },
+      body: JSON.stringify({ message: text }),
+    }
   );
 
-  // ✅ ВАЖНО: бек всегда шлёт event: message
-    eventSource.addEventListener("message", (e) => {
-      const data = JSON.parse((e as MessageEvent).data);
+  if (!response.ok || !response.body) {
+    assistantEl.textContent = "Ошибка соединения";
+    return;
+  }
 
-      // Thinking
-      if (data.message === "thinking") {
-        assistantEl.textContent = "thinking...";
-        return;
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+
+    const events = buffer.split("\n\n");
+    buffer = events.pop()!;
+
+    for (const rawEvent of events) {
+      let eventType = "message";
+      let dataLine = "";
+
+      for (const line of rawEvent.split("\n")) {
+        if (line.startsWith("event:")) {
+          eventType = line.slice(6).trim();
+        }
+        if (line.startsWith("data:")) {
+          dataLine += line.slice(5).trim();
+        }
       }
 
-      // Token stream
+      if (!dataLine) continue;
+
+      const data = JSON.parse(dataLine);
+
+      if (data.message === "thinking") {
+        assistantEl.textContent = "thinking...";
+        continue;
+      }
+
       if (data.text) {
         if (firstToken) {
           assistantEl.innerHTML = `<b>assistant</b>: `;
           firstToken = false;
         }
-
         assistantEl.innerHTML += data.text;
         messagesEl.scrollTop = messagesEl.scrollHeight;
+        continue;
+      }
+
+      if (data.message) {
+        assistantEl.textContent = `Ошибка: ${data.message}`;
+        reader.cancel();
         return;
       }
 
-      // Error
-      if (data.message) {
-        assistantEl.textContent = `Ошибка: ${data.message}`;
-        eventSource.close();
+      if (eventType === "done") {
+        reader.cancel();
+        return;
       }
-    });
-
-    // Завершение стрима
-    eventSource.addEventListener("done", () => {
-      eventSource.close();
-    });
-
-  eventSource.onerror = () => {
-    eventSource.close();
-  };
+    }
+  }
 }
 
 /* ---------- events ---------- */
