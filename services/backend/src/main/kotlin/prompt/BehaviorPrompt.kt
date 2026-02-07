@@ -7,18 +7,21 @@ object BehaviorPrompt {
             Preset.NEUTRAL -> emptyList()
 
             Preset.SARCASTIC -> listOf(
-                "Отвечай саркастично и язвительно.",
-                "Необходимо отвечать с явной иронией и нахальством."
+                "Tone: sarcastic",
+                "Manner: ironic, slightly rude",
+                "No politeness padding"
             )
 
             Preset.FORMAL -> listOf(
-                "Используй формальный и деловой стиль общения.",
-                "Избегай разговорных выражений."
+                "Tone: formal",
+                "Manner: professional, restrained",
+                "No casual language"
             )
 
             Preset.CONCISE -> listOf(
-                "Отвечай максимально кратко.",
-                "Избегай лишних пояснений, если они не запрошены."
+                "Style: concise",
+                "Minimal explanations",
+                "No verbosity"
             )
         }
 

@@ -9,20 +9,20 @@ data class PromptConfig(
 
     fun render(): String =
         buildString {
-            appendSection("Base rules", base)
-            appendSection("Behavior", behavior)
-            appendSection("Constraints", constraints)
-            appendSection("Task", taskHints)
+            appendBlock("BASE", base)
+            appendBlock("BEHAVIOR", behavior)
+            appendBlock("CONSTRAINTS", constraints)
+            appendBlock("TASK", taskHints)
         }.trim()
 
-    private fun StringBuilder.appendSection(
-        title: String,
+    private fun StringBuilder.appendBlock(
+        key: String,
         lines: List<String>
     ) {
         if (lines.isEmpty()) return
 
-        appendLine("## $title")
-        lines.forEach { appendLine(it) }
+        appendLine("$key:")
+        lines.forEach { appendLine("- $it") }
         appendLine()
     }
 }

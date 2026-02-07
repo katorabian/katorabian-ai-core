@@ -165,6 +165,8 @@ $commandSpecs
 
 Ввод пользователя:
 $input
+
+{
 """.trimIndent()
     }
 }
