@@ -90,15 +90,15 @@ class ChatService(
                 messageService.addUserMessage(session.id, userMessage)
 
                 val buffer = StringBuilder()
-                val prompt = promptService.buildPromptForSession(session)
+                val prompt = promptService.buildPromptV2(session)
 
                 runCatching {
                     val model = defineModel(decision, userQuery, modelService)
                     modelService.withInference(model) {
                         withTimeout(120_000) {
-                            llmClient.stream(
+                            llmClient.streamPrompt(
                                 model = model.id,
-                                messages = prompt
+                                prompt = prompt
                             ) { chunk ->
                                 buffer.append(chunk)
                                 splitForSse(chunk).forEach { safePart ->

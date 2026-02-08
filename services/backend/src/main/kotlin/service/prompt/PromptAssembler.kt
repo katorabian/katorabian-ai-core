@@ -56,13 +56,35 @@ class PromptAssembler(
                     )
                 )
             }
-
-            // ЯКОРЬ: явно говорим модели, что сейчас её очередь
-            add(
-                ChatMessage.system("[Assistant]")
-            )
         }
     }
+
+    fun assemblePrompt(
+        session: ChatSession,
+        history: List<ChatMessage>,
+        taskHints: List<String> = emptyList()
+    ): String {
+        val system = promptConfigFactory
+            .build(session.behaviorPreset, taskHints)
+            .render()
+
+        val conversation = history
+            .filter { it.role == Role.USER || it.role == Role.ASSISTANT }
+            .sortedBy { it.createdAt }
+            .joinToString("\n\n") {
+                "[${it.role.name.lowercase().replaceFirstChar(Char::uppercase)}]\n${it.content}"
+            }
+
+        return """
+        [System]
+        $system
+
+        $conversation
+
+        [Assistant]
+    """.trimIndent()
+    }
+
 
     /**
      * Гарантирует:

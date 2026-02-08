@@ -165,6 +165,65 @@ class LlamaCppClient(
         }
     }
 
+    override suspend fun streamPrompt(
+        model: String,
+        prompt: String,
+        onToken: suspend (String) -> Unit
+    ) = streamSemaphore.withPermit {
+        serverProcess.ensureAlive()
+        waitUntilReady()
+
+        val response = client.post("$baseUrl/v1/completions") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                buildJsonObject {
+                    put("model", model)
+                    put("prompt", prompt)
+                    put("stream", true)
+                }
+            )
+        }
+
+        val channel = response.bodyAsChannel()
+        val buffer = ByteArray(LLM_READ_BUFFER)
+        val sb = StringBuilder()
+
+        while (!channel.isClosedForRead) {
+            val read = channel.readAvailable(buffer)
+            if (read <= 0) {
+                yield()
+                continue
+            }
+
+            sb.append(buffer.decodeToString(0, read))
+
+            while (true) {
+                val idx = sb.indexOf("\n")
+                if (idx == -1) break
+
+                val line = sb.substring(0, idx).trim()
+                sb.delete(0, idx + 1)
+
+                if (!line.startsWith("data:")) continue
+                val payload = line.removePrefix("data:").trim()
+                if (payload == "[DONE]") return
+
+                val obj = Json.parseToJsonElement(payload).jsonObject
+                val text = obj["choices"]
+                    ?.jsonArray
+                    ?.firstOrNull()
+                    ?.jsonObject
+                    ?.get("text")
+                    ?.jsonPrimitive
+                    ?.content
+
+                if (!text.isNullOrEmpty()) {
+                    onToken(text)
+                }
+            }
+        }
+    }
+
     private fun looksLikeSystemLeak(text: String): Boolean =
         text.startsWith("## Prompt") ||
                 text.startsWith("## Assistant") ||

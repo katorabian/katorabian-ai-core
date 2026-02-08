@@ -20,4 +20,16 @@ class PromptService(
             taskHints = taskHints
         )
     }
+
+    fun buildPromptV2(
+        session: ChatSession,
+        taskHints: List<String> = emptyList()
+    ): String {
+        val history = store.getMessages(session.id)
+        return assembler.assemblePrompt(
+            session = session,
+            history = history,
+            taskHints = taskHints
+        )
+    }
 }

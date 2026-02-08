@@ -120,6 +120,14 @@ class OllamaClient(
         }
     }
 
+    override suspend fun streamPrompt(
+        model: String,
+        prompt: String,
+        onToken: suspend (String) -> Unit
+    ) {
+        TODO("Not yet implemented")
+    }
+
     override suspend fun generateCompletion(
         model: String,
         prompt: String,

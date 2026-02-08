@@ -16,6 +16,13 @@ interface LlmClient {
         onToken: suspend (String) -> Unit
     )
 
+    suspend fun streamPrompt(
+        model: String,
+        prompt: String,
+        onToken: suspend (String) -> Unit
+    )
+
+
     //Gatekeeper
     suspend fun generateCompletion(
         model: String,
