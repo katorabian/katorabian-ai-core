@@ -39,8 +39,28 @@ class PromptAssembler(
         val normalizedConversation = normalizeConversation(conversation)
 
         return buildList {
-            add(systemMessage)
-            addAll(normalizedConversation)
+            add(
+                ChatMessage.system("[System]\n${systemPrompt}")
+            )
+
+            normalizedConversation.forEach { msg ->
+                val roleTag = when (msg.role) {
+                    Role.USER -> "[User]"
+                    Role.ASSISTANT -> "[Assistant]"
+                    Role.SYSTEM -> return@forEach // на всякий случай
+                }
+
+                add(
+                    msg.copy(
+                        content = "$roleTag\n${msg.content}"
+                    )
+                )
+            }
+
+            // ЯКОРЬ: явно говорим модели, что сейчас её очередь
+            add(
+                ChatMessage.system("[Assistant]")
+            )
         }
     }
 

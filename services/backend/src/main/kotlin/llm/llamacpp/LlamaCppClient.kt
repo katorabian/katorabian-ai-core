@@ -158,12 +158,21 @@ class LlamaCppClient(
                     ?.jsonPrimitive
                     ?.contentOrNull
 
-                if (!content.isNullOrEmpty()) {
+                if (!content.isNullOrEmpty() && !looksLikeSystemLeak(content)) {
                     onToken(content)
                 }
             }
         }
     }
+
+    private fun looksLikeSystemLeak(text: String): Boolean =
+        text.startsWith("## Prompt") ||
+                text.startsWith("## Assistant") ||
+                text.contains("chat_template") ||
+                text.contains("The assistant's response is") ||
+                text.contains("conversations/") ||
+                text.contains("jinja") ||
+                text.contains("Context The user has not provided")
 
     suspend fun waitUntilReady() {
         serverProcess.waitUntilReady()
